@@ -1,0 +1,206 @@
+#!/bin/sh
+#######################################################################
+# Initialization:
+#: ${OCF_FUNCTIONS_DIR=${OCF_ROOT}/lib/custom}
+#. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+
+if [ -z "$OCF_ROOT" ]; then
+    : ${OCF_ROOT=/usr/lib/ocf}
+fi
+
+if [ "$OCF_FUNCTIONS_DIR" = ${OCF_ROOT}/lib/heartbeat ]; then  # old
+        unset OCF_FUNCTIONS_DIR
+fi
+
+: ${OCF_FUNCTIONS_DIR:=${OCF_ROOT}/lib/heartbeat}
+
+. ${OCF_FUNCTIONS_DIR}/ocf-binaries
+. ${OCF_FUNCTIONS_DIR}/ocf-returncodes
+. ${OCF_FUNCTIONS_DIR}/ocf-directories
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+
+#######################################################################
+
+meta_data() {
+	cat <<END
+<?xml version="1.0"?>
+<!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
+<resource-agent name="controlm-de" version="0.1">
+<version>1.0</version>
+
+<longdesc lang="en">
+This is a DE controlm Resource Agent. It 
+keeps track of whether the DE controlm process is running or not.
+
+NB: Please pay attention to the timeouts specified in the actions
+section below. They should be meaningful for the kind of resource
+the agent manages. They should be the minimum advised timeouts,
+but they shouldn't/cannot cover _all_ possible resource
+instances. So, try to be neither overly generous nor too stingy,
+but moderate. The minimum timeouts should never be below 10 seconds.
+</longdesc>
+
+<shortdesc lang="en">DE controlm resource agent</shortdesc>
+
+<parameters>
+
+<parameter name="controlm_script_path" unique="1" required="true">
+<longdesc lang="en">
+Location of the DE controlm script 
+</longdesc>
+<shortdesc lang="en">controlm shell script path</shortdesc>
+<content type="string" default="/software/ctmag64/cluster_scripts/control_controlm.sh" />
+</parameter>
+
+<parameter name="dbcluster" unique="1" required="true">
+<longdesc lang="en">
+The DB Cluster Group name
+</longdesc>
+<shortdesc lang="en">DB cluster group name </shortdesc>
+<content type="string" default="" />
+</parameter>
+
+<parameter name="lock_file" unique="1" required="true">
+<longdesc lang="en">
+Location of the controlm lockfile 
+</longdesc>
+<shortdesc lang="en">controlm lock file path</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+</parameters>
+
+<actions>
+<action name="start"        timeout="20s" />
+<action name="stop"         timeout="20s" />
+<action name="monitor"      timeout="20s" interval="10s" depth="0" />
+<action name="validate-all" timeout="20s" />
+<action name="meta-data"  timeout="5s"/>
+</actions>
+</resource-agent>
+END
+}
+
+#######################################################################
+
+USAGE="Usage: $0 {start|stop|monitor|status|validate-all|meta-data}";
+
+
+controlm_usage() {
+	echo $USAGE >&2
+}
+
+controlm_status() {
+	# Monitor _MUST!_ differentiate correctly between running
+	# (SUCCESS), failed (ERROR) or _cleanly_ stopped (NOT RUNNING).
+	# That is THREE states, not just yes/no.
+
+	#We fail if lockfile isn't set or not running
+	if [ ! -f $OCF_RESKEY_lock_file ]; then 	
+		ocf_log info "$OCF_RESKEY_lock_file not present, controlm service not running"
+		return $OCF_NOT_RUNNING														
+	fi
+	
+	# We return success here for controlm_as restarting 
+	# could cause more harm than good
+	local control=1
+	if [ "$control" -eq 1 ]; then
+        	ocf_log info "controlm service running"
+		return $OCF_SUCCESS
+	fi
+	#if [ "$control" -ne 1 ]; then
+	#	ocf_log info "controlm service is not running but will not restart"
+		#return $OCF_SUCCESS
+	#	return $OCF_NOT_RUNNING
+		#return $OCF_ERR_GENERIC
+        #fi
+	#return $OCF_NOT_RUNNING
+}
+
+controlm_start() {
+
+	ocf_log info "Starting the DE controlm service..."
+       	#START_COMMAND="/software/ctmag64/cluster_scripts/control_controlm.sh start $OCF_RESKEY_dbcluster"
+        START_COMMAND="$OCF_RESKEY_controlm_script_path start $OCF_RESKEY_dbcluster"
+	
+	#ocf_run "$START_COMMAND"
+	ocf_log info "Command to start: $START_COMMAND"
+	$START_COMMAND; 	
+	if [ $? -eq "0" ]; then
+		ocf_log info "Started the DE controlm service..."
+        	touch $OCF_RESKEY_lock_file 	
+		return $OCF_SUCCESS
+	else
+		ocf_log error "controlm resource is not running"
+        	return $OCF_NOT_RUNNING	
+	fi
+}
+
+controlm_stop() {
+
+	ocf_log info "Stopping the DE controlm service..."
+	#STOP_COMMAND="/software/ctmag64/cluster_scripts/control_controlm.sh stop $OCF_RESKEY_dbcluster"
+	STOP_COMMAND="$OCF_RESKEY_controlm_script_path stop $OCF_RESKEY_dbcluster"
+
+	#ocf_run "$STOP_COMMAND"
+	ocf_log info "Command to stop: $STOP_COMMAND"
+	$STOP_COMMAND;
+	if [ $? -eq "0" ]; then		
+		if [ `rm -rf $OCF_RESKEY_lock_file` ]; then
+			ocf_log info "Removed lock file"
+		else
+			ocf_log info "Lock file not present"
+		fi
+		ocf_log info "Stopped the DE controlm service..."
+		exit $OCF_SUCCESS
+	else	
+		ocf_exit_reason "Error. Could not stop the controlm service"			
+		return $OCF_NOT_RUNNING
+	fi
+}
+
+controlm_validate() {
+	controlm_status
+	return $OCF_SUCCESS
+}
+
+#####
+#
+#MAIN
+#
+#####
+
+if [ $# -ne 1 ]; then
+        controlm_usage
+        exit $OCF_ERR_ARGS
+fi
+
+
+case $1 in
+    start)  
+        controlm_start
+    ;;
+    stop)
+        controlm_stop
+    ;;
+    status) 
+		controlm_status
+    ;;
+    monitor)
+		controlm_status
+    ;;
+    validate-all)
+        controlm_validate
+    ;;
+    meta-data)    
+		meta_data
+    ;;
+    usage)  
+		controlm_usage
+        exit $OCF_SUCCESS
+    ;;
+    *)
+    	controlm_usage
+        exit $OCF_ERR_UNIMPLEMENTED
+    ;;
+esac

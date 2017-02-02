@@ -1,0 +1,41 @@
+#!/bin/bash
+
+
+#MAIN
+
+while getopts ":a:d:n:p:r:s:x:h" opt; do
+  case $opt in
+    a)
+      echo "-a was triggered, Parameter: $OPTARG" >&2
+      ;;
+    d)
+      echo "-d was triggered, Parameter: $OPTARG" >&2
+      ;;
+    n)
+      echo "-n was triggered, Parameter: $OPTARG" >&2
+      ;;
+    p)
+      echo "-p was triggered, Parameter: $OPTARG" >&2
+      ;;
+    r)
+      echo "-r was triggered, Parameter: $OPTARG" >&2
+      ;;
+    s)
+      echo "-s was triggered, Parameter: $OPTARG" >&2
+      ;;
+    x)
+      echo "-x was triggered, Parameter: $OPTARG" >&2
+      ;;
+    h)
+      echo "-h was triggered, Parameter: $OPTARG" >&2
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done

@@ -1,0 +1,167 @@
+#!/bin/sh
+#######################################################################
+# Initialization:
+
+if [ -z "$OCF_ROOT" ]; then
+    : ${OCF_ROOT=/usr/lib/ocf}
+fi
+
+if [ "$OCF_FUNCTIONS_DIR" = ${OCF_ROOT}/resource.d/heartbeat ]; then  # old
+        unset OCF_FUNCTIONS_DIR
+fi
+
+: ${OCF_FUNCTIONS_DIR:=${OCF_ROOT}/lib/heartbeat}
+
+. ${OCF_FUNCTIONS_DIR}/ocf-binaries
+. ${OCF_FUNCTIONS_DIR}/ocf-returncodes
+. ${OCF_FUNCTIONS_DIR}/ocf-directories
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+
+#######################################################################
+
+meta_data() {
+	cat <<END
+<?xml version="1.0"?>
+<!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
+<resource-agent name="$__DE_RESOURCE_AGENT__-de" version="0.1">
+<version>1.0</version>
+
+<longdesc lang="en">
+This is a DE $__DE_RESOURCE_AGENT__ Resource Agent. It 
+keeps track of whether the DE $__DE_RESOURCE_AGENT__ process is running or not.
+
+NB: Please pay attention to the timeouts specified in the actions
+section below. They should be meaningful for the kind of resource
+the agent manages. They should be the minimum advised timeouts,
+but they shouldn't/cannot cover _all_ possible resource
+instances. So, try to be neither overly generous nor too stingy,
+but moderate. The minimum timeouts should never be below 10 seconds.
+</longdesc>
+
+<shortdesc lang="en">DE $__DE_RESOURCE_AGENT__ resource agent</shortdesc>
+
+<parameters>
+<parameter name="homedir" unique="1" required="true">
+<longdesc lang="en">
+Location of the DE $__DE_RESOURCE_AGENT__ home directory.
+</longdesc>
+<shortdesc lang="en">DE Home Directory</shortdesc>
+<content type="string" default="$__DE_HOMEDIR__" />
+</parameter>
+</parameters>
+
+<actions>
+<action name="start"        timeout="20s" />
+<action name="stop"         timeout="20s" />
+<action name="monitor"      timeout="20s" interval="10s" depth="0" />
+<action name="validate-all" timeout="20s" />
+<action name="meta-data"  timeout="5s"/>
+</actions>
+</resource-agent>
+END
+}
+
+#######################################################################
+
+USAGE="Usage: $0 {start|stop|monitor|status|validate-all|meta-data}";
+
+
+$__DE_RESOURCE_AGENT___usage() {
+	echo $USAGE >&2
+}
+
+get_pid_file() {
+	PIDFILE="$OCF_RESKEY_homedir/$__DE_PID_FILE__"
+}
+
+$__DE_RESOURCE_AGENT___status() {
+	# Monitor _MUST!_ differentiate correctly between running
+	# (SUCCESS), failed (ERROR) or _cleanly_ stopped (NOT RUNNING).
+	# That is THREE states, not just yes/no.
+	get_pid_file	
+	if [ -n "$PIDFILE" -a -f $PIDFILE ]; then
+		PID=`cat $PIDFILE`
+		if [ -n "$PID" ]; then
+			if ps -p $PID | grep $__DE_DAEMON_NAME__ >/dev/null ; then				
+				ocf_log info "$__DE_DAEMON_NAME__ daemon running"
+				return $OCF_SUCCESS
+			else	
+				ocf_log error "$__DE_DAEMON_NAME__ daemon is not running but pid file exists"
+                return $OCF_NOT_RUNNING
+			fi
+		else
+			ocf_log error "PID file empty or doesn't exist!"
+			return $OCF_NOT_RUNNING
+		fi
+	fi
+
+	ocf_log info "cycle daemon is not running"
+	return $OCF_NOT_RUNNING
+}
+
+$__DE_RESOURCE_AGENT___start() {
+	$__DE_RESOURCE_AGENT___status
+    if [ $rc -eq $OCF_SUCCESS ]; then
+		return $OCF_SUCCESS
+    elif [ $rc -ne $OCF_NOT_RUNNING ]; then
+		ocf_exit_reason "Error. Unknown status."
+		exit $OCF_ERR_GENERIC
+    fi
+	ocf_log info "Starting the DE $__DE_RESOURCE_AGENT__ Service..."
+	ocf_run "$OCF_RESKEY_homedir/$__DE_START_SCRIPT__"
+	ocf_log info "Started the DE $__DE_RESOURCE_AGENT__ Service..."
+}
+
+$__DE_RESOURCE_AGENT___stop() {
+	if $__DE_RESOURCE_AGENT___status; then
+		ocf_log info "Stopping the DE $__DE_RESOURCE_AGENT__ Service..."
+		ocf_run "$OCF_RESKEY_homedir/$__DE_STOP_SCRIPT__"
+		ocf_log info "Stopped the DE $__DE_RESOURCE_AGENT__ Service..."
+	fi
+}
+
+$__DE_RESOURCE_AGENT___validate() {
+	$__DE_RESOURCE_AGENT___status
+	return $OCF_SUCCESS
+}
+
+#####
+#
+#MAIN
+#
+#####
+
+if [ $# -ne 1 ]; then
+        $__DE_RESOURCE_AGENT___usage
+        exit $OCF_ERR_ARGS
+fi
+
+
+case $1 in
+	start)  
+        $__DE_RESOURCE_AGENT___start
+    ;;
+    stop)
+        $__DE_RESOURCE_AGENT___stop
+    ;;
+    status) 
+		$__DE_RESOURCE_AGENT___status
+    ;;
+    monitor)
+		$__DE_RESOURCE_AGENT___status
+    ;;
+    validate-all)
+        $__DE_RESOURCE_AGENT___validate
+    ;;
+    meta-data)    
+		meta_data
+    ;;
+    usage)  
+		$__DE_RESOURCE_AGENT___usage
+        exit $OCF_SUCCESS
+    ;;
+    *)
+    	$__DE_RESOURCE_AGENT___usage
+        exit $OCF_ERR_UNIMPLEMENTED
+    ;;
+esac
