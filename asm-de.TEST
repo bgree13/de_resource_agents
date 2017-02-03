@@ -102,25 +102,35 @@ asm_status() {
 	# That is THREE states, not just yes/no.
 
 	HOST_NAME=`uname -n`	
-	STATUS_COMMAND="$OCF_RESKEY_srvctl/srvctl status diskgroup -diskgroup $OCF_RESKEY_diskgroup"
+	#STATUS_COMMAND="$OCF_RESKEY_srvctl/srvctl status diskgroup -diskgroup $OCF_RESKEY_diskgroup"
+	STATUS_COMMAND="/software/oracle/grid/12.1.0/bin/srvctl tatus" 
 
-	if [ $STATUS_COMMAND -eq 0 ]; then
-		ocf_log info "Disk Group $OCF_RESKEY_diskgroup rc=0"
-	else											
-		ocf_log info "Disk file not found"
-                return "$OCF_NOT_RUNNING"		
-	fi	
-
+	if [ $STATUS_COMMAND ]; then
+			
+	fi
+	echo "$?"
 	$STATUS_COMMAND | 
 	while read line
 	do
+		#echo $?
 		if [[ $line == "Disk Group $OCF_RESKEY_diskgroup is running on $HOST_NAME" ]]; then
-			ocf_log info "Disk Group $OCF_RESKEY_diskgroup is running on $HOST_NAME"
-			return $OCF_SUCCESS	
+			#ocf_log info "Disk Group $OCF_RESKEY_diskgroup is running on $HOST_NAME"
+			#return $OCF_SUCCESS	
+			echo "Running"
 		elif [[ $line == "Disk Group $OCF_RESKEY_diskgroup not running" ]]; then
-			ocf_log info "Disk Group $OCF_RESKEY_diskgroup not running on $HOST_NAME"
-			return "$OCF_NOT_RUNNING"
+			#ocf_log info "Disk Group $OCF_RESKEY_diskgroup not running on $HOST_NAME"
+			#return "$OCF_NOT_RUNNING"
+			echo "Not Running"
+		elif [[ $line == "1" ]]; then
+			#ocf_log info "Disk file not found"
+			#return "$OCF_NOT_RUNNING"
+			echo "Not Running Also"
 		fi
+	echo ${STATUS_COMMAND}
+	#echo "$?"
+	#if [ $STATUS_COMMAND -eq 0 ]; then
+	#	echo "Not Running Also"
+	#fi			
 	done
 
 }
