@@ -104,7 +104,8 @@ asm_status() {
 	HOST_NAME=`uname -n`	
 	STATUS_COMMAND="$OCF_RESKEY_srvctl/srvctl status diskgroup -diskgroup $OCF_RESKEY_diskgroup"
 
-	if [ $STATUS_COMMAND -eq 0 ]; then
+	$STATUS_COMMAND  
+	if [ $? -eq 0 ]; then
 		ocf_log info "Disk Group $OCF_RESKEY_diskgroup rc=0"
 	else											
 		ocf_log info "Disk file not found"

@@ -105,10 +105,16 @@ asm_status() {
 	#STATUS_COMMAND="$OCF_RESKEY_srvctl/srvctl status diskgroup -diskgroup $OCF_RESKEY_diskgroup"
 	STATUS_COMMAND="/software/oracle/grid/12.1.0/bin/srvctl tatus" 
 
-	if [ $STATUS_COMMAND ]; then
-			
-	fi
-	echo "$?"
+	$STATUS_COMMAND  
+	if [ $? -eq 0 ]; then
+                #ocf_log info "Disk Group $OCF_RESKEY_diskgroup rc=0"
+                echo "Success"
+        else
+                #ocf_log info "Disk file not found"
+                echo "Failure"
+                #return "$OCF_NOT_RUNNING"
+        fi
+
 	$STATUS_COMMAND | 
 	while read line
 	do
