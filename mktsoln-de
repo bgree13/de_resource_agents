@@ -157,6 +157,7 @@ mktsoln_status() {
 }
 
 mktsoln_start() {
+    
     mktsoln_status
     local rc=$?	
     if [ $rc -eq $OCF_SUCCESS ]; then
@@ -167,13 +168,15 @@ mktsoln_start() {
     fi
 
     if [ -n "$OCF_RESKEY_binpath" ]; then
-	COMMAND="$OCF_RESKEY_binpath/control_mktsoln.sh start $OCF_RESKEY_env"
+	START_COMMAND="$OCF_RESKEY_binpath/control_mktsoln.sh start $OCF_RESKEY_env"
     else
-	COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh start $OCF_RESKEY_env"
-    fi		
-    ocf_log info "$OCF_RESKEY_binpath/control_mktsoln.sh start $OCF_RESKEY_env" 	  
+	START_COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh start $OCF_RESKEY_env"
+    fi	
+	
+
+    $START_COMMAND; 
+    ocf_log info "Running Command: $START_COMMAND"
     if grep "PIDFILE=" $PIDFILE | cut -d '=' -f2 >/dev/null; then
- 	$COMMAND start;
 	if [ $? -ne 0 ]; then
 		ocf_exit_reason "Error. mktsoln daemon returned error $rc."		
 		exit $OCF_ERR_GENERIC
@@ -182,18 +185,25 @@ mktsoln_start() {
 	ocf_exit_reason "Error. \"PID\" entry required in the mktsoln config file to be run by OCF."
 	return $OCF_ERR_GENERIC
     fi	 	
+
     ocf_log info "Started mktsoln daemon."	
     exit $OCF_SUCCESS	
 
 }
 
 mktsoln_stop() {
-   if mktsoln_status; then
+
+   	if mktsoln_status; then
                 PID=`cat $PIDFILE`
                 if [ -n "$PID" ] ; then
-                        #kill $PID
-			COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh stop $OCF_RESKEY_env"
-			$COMMAND;
+                        kill $PID
+			if [ -n "$OCF_RESKEY_binpath" ]; then
+        			STOP_COMMAND="$OCF_RESKEY_binpath/control_mktsoln.sh stop $OCF_RESKEY_env"
+			else
+				STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh stop $OCF_RESKEY_env"
+			fi	
+			$STOP_COMMAND;
+			ocf_log info "Running Command: $STOP_COMMAND"
                         if [ $? -ne 0 ]; then
                                 kill -s KILL $PID
                                 if [ $? -ne 0 ]; then
@@ -202,11 +212,12 @@ mktsoln_stop() {
                                 fi
                         fi
                 rm $PIDFILE 2>/dev/null
+        	ocf_log info "mktsoln daemon stopped"
                 fi
-        fi
-        ocf_log info "mktsoln daemon stopped"
-        exit $OCF_SUCCESS
-
+	else
+		return $OCF_NOT_RUNNING
+	fi
+	
 }
 
 mktsoln_validate() {
@@ -214,7 +225,7 @@ mktsoln_validate() {
     mktsoln_status
     #Check whether pidfile exist
     if [ -n "$OCF_RESKEY_pidfile" -a ! -f "$OCF_RESKEY_pidfile" ]; then
-    	ocf_exit_reason "Config file $OCF_RESKEY_pidfile does not exist."
+    	ocf_exit_reason "pidfile file $OCF_RESKEY_pidfile does not exist."
     	exit $OCF_ERR_ARGS
     fi
 
