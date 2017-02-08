@@ -124,7 +124,7 @@ pswkflow_status() {
 	# That is THREE states, not just yes/no.
 
 	if [ -n "$WRKFLOW_ID" ]; then
-	    #pswkflow is likely running 	
+	    	#pswkflow is likely running 	
 		ocf_log info "pswkflow daemon running"
 		return $OCF_SUCCESS
 	else	
@@ -137,6 +137,7 @@ pswkflow_status() {
 }
 
 pswkflow_start() {
+
     pswkflow_status
     local rc=$?	
     if [ $rc -eq $OCF_SUCCESS ]; then
@@ -152,45 +153,36 @@ pswkflow_start() {
 	START_COMMAND="/opt/peace/tools/cluster_scripts/control_processWorkflow.sh start $OCF_RESKEY_env"
     fi		
 
-    $START_COMMAND; 
     ocf_log info "Running Command: $START_COMMAND"
+    $START_COMMAND; 
     if [ $? -ne 0 ]; then
 	ocf_exit_reason "Error. pswkflow daemon returned error $rc."		
 	exit $OCF_ERR_GENERIC
-    fi
-    else
-	ocf_exit_reason "Error. \"PID\" entry required in the pswkflow config file to be run by OCF."
-	return $OCF_ERR_GENERIC
     fi	 	
+
     ocf_log info "Started pswkflow daemon."	
     exit $OCF_SUCCESS	
 
 }
 
 pswkflow_stop() {
-   if pswkflow_status; then
-                PID=`cat $PIDFILE`
-                if [ -n "$PID" ] ; then
-                	kill $PID
-			if [ -n "$OCF_RESKEY_binpath" ]; then
-				STOP_COMMAND="$OCF_RESKEY_binpath/control_processWorkflow.sh stop $OCF_RESKEY_env"
-			    else
-				STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_processWorkflow.sh stop $OCF_RESKEY_env"
-		fi
-		$STOP_COMMAND;
-    		ocf_log info "Running Command: $STOP_COMMAND"
-                        if [ $? -ne 0 ]; then
-                                kill -s KILL $PID
-                                if [ $? -ne 0 ]; then
-                                        ocf_exit_reason "Error. Could not stop pswkflow daemon."
-                                        return $OCF_NOT_RUNNING
-                                fi
-                        fi
-                rm $PIDFILE 2>/dev/null
-        	ocf_log info "pswkflow daemon stopped"
-                fi
+
+	if [ -n "$OCF_RESKEY_binpath" ]; then
+		STOP_COMMAND="$OCF_RESKEY_binpath/control_processWorkflow.sh stop $OCF_RESKEY_env"
 	else
-        	return $OCF_NOT_RUNNING
+		STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_processWorkflow.sh stop $OCF_RESKEY_env"
+	fi
+
+  	if pswkflow_status; then
+		ocf_log info "Running Command: $STOP_COMMAND"
+		$STOP_COMMAND;
+                if [ $? -ne 0 ]; then
+			ocf_exit_reason "Error. Could not stop pswkflow daemon."
+    			return $OCF_ERR_ARGS
+		else
+        		ocf_log info "pswkflow daemon stopped"
+        		return $OCF_NOT_RUNNING
+                fi
         fi
 }
 

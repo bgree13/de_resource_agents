@@ -189,31 +189,29 @@ jboss_start() {
 }
 
 jboss_stop() {
-   if jboss_status; then
-                PID=`cat $PIDFILE`
-                if [ -n "$PID" ] ; then
-                	kill $PID
-			if [ -n "$OCF_RESKEY_binpath" ]; then
-				STOP_COMMAND="$OCF_RESKEY_binpath/control_core.sh stop $OCF_RESKEY_env"
-			    else
-				STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_core.sh stop $OCF_RESKEY_env"
-		fi
 
-    		ocf_log info "Running Command: $STOP_COMMAND"
-		$STOP_COMMAND;
-                        if [ $? -ne 0 ]; then
-                                kill -s KILL $PID
-                                if [ $? -ne 0 ]; then
-                                        ocf_exit_reason "Error. Could not stop jboss daemon."
-                                        return $OCF_NOT_RUNNING
-                                fi
-                        fi
-                rm $PIDFILE 2>/dev/null
-        	ocf_log info "jboss daemon stopped"
-                fi
+	if [ -n "$OCF_RESKEY_binpath" ]; then
+		STOP_COMMAND="$OCF_RESKEY_binpath/control_core.sh stop $OCF_RESKEY_env"
 	else
-        	return $OCF_NOT_RUNNING
+		STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_core.sh stop $OCF_RESKEY_env"
+	fi
+
+  	if jboss_status; then
+                PID=`cat $PIDFILE`
+                ocf_log info "Running Command: $STOP_COMMAND"
+                $STOP_COMMAND;
+                if [ $? -ne 0 ]; then
+                        kill $PID
+                        if [ $? -ne 0 ]; then
+                                ocf_exit_reason "Error. Could not stop jboss daemon."
+                                return $OCF_NOT_RUNNING
+                        fi
+                fi
         fi
+
+        ocf_log info "jboss daemon stopped"
+        exit $OCF_SUCCESS
+
 }
 
 jboss_validate() {
