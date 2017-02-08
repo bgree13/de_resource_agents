@@ -172,8 +172,8 @@ jboss_start() {
 	START_COMMAND="/opt/peace/tools/cluster_scripts/control_core.sh start $OCF_RESKEY_env"
     fi		
 
-    $START_COMMAND; 
     ocf_log info "Running Command: $START_COMMAND"
+    $START_COMMAND; 
     if grep "PIDFILE=" $PIDFILE | cut -d '=' -f2 >/dev/null; then
 	if [ $? -ne 0 ]; then
 		ocf_exit_reason "Error. jboss daemon returned error $rc."		
@@ -198,8 +198,9 @@ jboss_stop() {
 			    else
 				STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_core.sh stop $OCF_RESKEY_env"
 		fi
-		$STOP_COMMAND;
+
     		ocf_log info "Running Command: $STOP_COMMAND"
+		$STOP_COMMAND;
                         if [ $? -ne 0 ]; then
                                 kill -s KILL $PID
                                 if [ $? -ne 0 ]; then

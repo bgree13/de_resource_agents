@@ -174,8 +174,8 @@ mktsoln_start() {
     fi	
 	
 
-    $START_COMMAND; 
     ocf_log info "Running Command: $START_COMMAND"
+    $START_COMMAND; 
     if grep "PIDFILE=" $PIDFILE | cut -d '=' -f2 >/dev/null; then
 	if [ $? -ne 0 ]; then
 		ocf_exit_reason "Error. mktsoln daemon returned error $rc."		
@@ -201,9 +201,10 @@ mktsoln_stop() {
         			STOP_COMMAND="$OCF_RESKEY_binpath/control_mktsoln.sh stop $OCF_RESKEY_env"
 			else
 				STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh stop $OCF_RESKEY_env"
-			fi	
-			$STOP_COMMAND;
+			fi
+	
 			ocf_log info "Running Command: $STOP_COMMAND"
+			$STOP_COMMAND;
                         if [ $? -ne 0 ]; then
                                 kill -s KILL $PID
                                 if [ $? -ne 0 ]; then
