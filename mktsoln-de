@@ -1,0 +1,275 @@
+#!/bin/sh
+#
+#
+#	mktsoln OCF RA. Does nothing but wait a few seconds, can be
+#	configured to fail occassionally.
+#
+# Copyright (c) 2004 SUSE LINUX AG, Lars Marowsky-Brée
+#                    All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of version 2 of the GNU General Public License as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it would be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# Further, this software is distributed without any warranty that it is
+# free of the rightful claim of any third person regarding infringement
+# or the like.  Any license provided herein, whether implied or
+# otherwise, applies only to this software file.  Patent licenses, if
+# any, provided herein do not apply to combinations of this program with
+# other software, or any other product whatsoever.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write the Free Software Foundation,
+# Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+#
+
+#######################################################################
+# Initialization:
+
+#: ${OCF_FUNCTIONS_DIR=${OCF_ROOT}/lib/custom}
+#. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+
+if [ -z "$OCF_ROOT" ]; then
+    : ${OCF_ROOT=/usr/lib/ocf}
+fi
+
+if [ "$OCF_FUNCTIONS_DIR" = ${OCF_ROOT}/resource.d/heartbeat ]; then  # old
+        unset OCF_FUNCTIONS_DIR
+fi
+
+: ${OCF_FUNCTIONS_DIR:=${OCF_ROOT}/lib/heartbeat}
+
+. ${OCF_FUNCTIONS_DIR}/ocf-binaries
+. ${OCF_FUNCTIONS_DIR}/ocf-returncodes
+. ${OCF_FUNCTIONS_DIR}/ocf-directories
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+
+meta_data() {
+	cat <<END
+<?xml version="1.0"?>
+<!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
+<resource-agent name="mktsoln" version="0.1">
+<version>1.0</version>
+
+<longdesc lang="en">
+This is a mktsoln Resource Agent. It does absolutely nothing except 
+keep track of whether the cyle process is running or not.
+
+NB: Please pay attention to the timeouts specified in the actions
+section below. They should be meaningful for the kind of resource
+the agent manages. They should be the minimum advised timeouts,
+but they shouldn't/cannot cover _all_ possible resource
+instances. So, try to be neither overly generous nor too stingy,
+but moderate. The minimum timeouts should never be below 10 seconds.
+</longdesc>
+
+<shortdesc lang="en">Example mktsoln resource agent</shortdesc>
+
+<parameters>
+
+<parameter name="binpath" unique="0" required="true">
+<longdesc lang="en">
+The mktsoln binary path 
+For example, "/opt/peace/tools/cluster_scripts"
+</longdesc>
+<shortdesc lang="en">Full path to the mktsoln binary</shortdesc>
+<content type="string" default="/opt/peace/tools/cluster_scripts/" />
+</parameter>
+
+<parameter name="env" unique="0" required="true">
+<longdesc lang="en">
+The market solution environment
+</longdesc>
+<shortdesc lang="en">Market solution environment name</shortdesc>
+<content type="string" default="" />
+</parameter>
+
+<parameter name="pidfile"> 
+<longdesc lang="en">
+The market solution pidfile 
+</longdesc>
+<shortdesc lang="en">Market solution pidfile</shortdesc>
+<content type="string" default="/opt/peace/$OCF_RESKEY_env/onsite/mktsoln/esbconnector.pid" />
+</parameter>
+
+
+</parameters>
+
+<actions>
+<action name="start"        timeout="20s" />
+<action name="stop"         timeout="20s" />
+<action name="monitor"      timeout="20s" interval="10s" depth="0" />
+<action name="validate-all" timeout="20s" />
+<action name="meta-data"  timeout="5s"/>
+</actions>
+</resource-agent>
+END
+}
+
+#######################################################################
+
+USAGE="Usage: $0 {start|stop|monitor|status|validate-all|meta-data}";
+
+
+mktsoln_usage() {
+
+	echo $USAGE >&2
+}
+
+get_pid_file() {
+
+	if [ -n "$OCF_RESKEY_pidfile" ]; then
+		PIDFILE=$OCF_RESKEY_pidfile
+	else
+		PIDFILE="/opt/peace/$OCF_RESKEY_env/onsite/mktsoln/esbconnector.pid"
+	fi
+
+}
+
+mktsoln_status() {
+	# Monitor _MUST!_ differentiate correctly between running
+	# (SUCCESS), failed (ERROR) or _cleanly_ stopped (NOT RUNNING).
+	# That is THREE states, not just yes/no.
+	get_pid_file	
+	if [ -n "$PIDFILE" -a -f $PIDFILE ]; then
+	    #mktsoln is likely running 	
+		PID=`cat $PIDFILE`
+		if [ -n "$PID" ]; then
+			if ps -p $PID | grep mkt >/dev/null ; then				
+				ocf_log info "mktsoln daemon running"
+				return $OCF_SUCCESS
+			else	
+				ocf_log error "mktsoln daemon is not running but pid file exists"
+                                return $OCF_NOT_RUNNING
+			fi
+		else
+			ocf_log error "PID file empty or doesn't exist!"
+			return $OCF_NOT_RUNNING
+		fi
+	fi
+
+	ocf_log info "mktsoln daemon is not running"
+	return $OCF_NOT_RUNNING
+}
+
+mktsoln_start() {
+    mktsoln_status
+    local rc=$?	
+    if [ $rc -eq $OCF_SUCCESS ]; then
+	return $OCF_SUCCESS
+    elif [ $rc -ne $OCF_NOT_RUNNING ]; then
+	ocf_exit_reason "Error. Unknown status."
+	exit $OCF_ERR_GENERIC
+    fi
+
+    if [ -n "$OCF_RESKEY_binpath" ]; then
+	COMMAND="$OCF_RESKEY_binpath/control_mktsoln.sh start $OCF_RESKEY_env"
+    else
+	COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh start $OCF_RESKEY_env"
+    fi		
+    ocf_log info "$OCF_RESKEY_binpath/control_mktsoln.sh start $OCF_RESKEY_env" 	  
+    if grep "PIDFILE=" $PIDFILE | cut -d '=' -f2 >/dev/null; then
+ 	$COMMAND start;
+	if [ $? -ne 0 ]; then
+		ocf_exit_reason "Error. mktsoln daemon returned error $rc."		
+		exit $OCF_ERR_GENERIC
+	fi
+    else
+	ocf_exit_reason "Error. \"PID\" entry required in the mktsoln config file to be run by OCF."
+	return $OCF_ERR_GENERIC
+    fi	 	
+    ocf_log info "Started mktsoln daemon."	
+    exit $OCF_SUCCESS	
+
+}
+
+mktsoln_stop() {
+   if mktsoln_status; then
+                PID=`cat $PIDFILE`
+                if [ -n "$PID" ] ; then
+                        #kill $PID
+			COMMAND="/opt/peace/tools/cluster_scripts/control_mktsoln.sh stop $OCF_RESKEY_env"
+			$COMMAND;
+                        if [ $? -ne 0 ]; then
+                                kill -s KILL $PID
+                                if [ $? -ne 0 ]; then
+                                        ocf_exit_reason "Error. Could not stop mktsoln daemon."
+                                        return $OCF_NOT_RUNNING
+                                fi
+                        fi
+                rm $PIDFILE 2>/dev/null
+                fi
+        fi
+        ocf_log info "mktsoln daemon stopped"
+        exit $OCF_SUCCESS
+
+}
+
+mktsoln_validate() {
+    
+    mktsoln_status
+    #Check whether pidfile exist
+    if [ -n "$OCF_RESKEY_pidfile" -a ! -f "$OCF_RESKEY_pidfile" ]; then
+    	ocf_exit_reason "Config file $OCF_RESKEY_pidfile does not exist."
+    	exit $OCF_ERR_ARGS
+    fi
+
+   #Determine if PID file variable is set
+    if grep "PIDFILE=" $PIDFILE | cut -d '=' -f2 >/dev/null; then
+	:
+    else
+        ocf_exit_reason "Error. \"PID\" entry required in the mktsoln pid file to be run by OCF."
+        return $OCF_ERR_GENERIC
+    fi
+
+    return $OCF_SUCCESS
+
+}
+
+#: ${OCF_RESKEY_state=${HA_RSCTMP}/mktsoln-${OCF_RESOURCE_INSTANCE}.state}
+#: ${OCF_RESKEY_fake="mktsoln"}
+
+#####
+#
+#MAIN
+#
+#####
+
+if [ $# -ne 1 ]; then
+        mktsoln_usage
+        exit $OCF_ERR_ARGS
+fi
+
+
+case $1 in
+	start)  
+                mktsoln_start
+        ;;
+        stop)
+                mktsoln_stop
+        ;;
+        status) 
+		mktsoln_status
+        ;;
+        monitor)
+		mktsoln_status
+        ;;
+        validate-all)   
+                mktsoln_validate
+        ;;
+        meta-data)    
+		meta_data
+        ;;
+        usage)  
+		mktsoln_usage
+                exit $OCF_SUCCESS
+                ;;
+
+        *)      mktsoln_usage
+                exit $OCF_ERR_UNIMPLEMENTED
+                ;;
+esac
