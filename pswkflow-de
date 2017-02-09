@@ -88,6 +88,14 @@ The Process Workfow environment
 <content type="string" default="" />
 </parameter>
 
+<parameter name="fqlprocess"> 
+<longdesc lang="en">
+The FGL process name to be monitored
+</longdesc>
+<shortdesc lang="en">The FGL process name</shortdesc>
+<content type="string" default="" />
+</parameter>
+
 </parameters>
 
 <actions>
@@ -113,8 +121,13 @@ pswkflow_usage() {
 
 get_workflow_pid() {
 
-	#WRKFLOW_ID=`ps -u energypw ux | grep $OCF_RESKEY_env | egrep "p_trans_ctrl"`
-	WRKFLOW_ID=`ps -ef | grep cycle | grep root | egrep "jboss" | awk '{print $1}'`
+		
+	if [ -n "$OCF_RESKEY_fqlprocess" ]; then
+		#WRKFLOW_ID=`ps -ef | grep cycle | grep root | egrep "$OCF_RESKEY_fqlprocess" | awk '{print $2}'`
+		WRKFLOW_ID=`ps -u "$OCF_RESKEY_fqlprocess" ux | grep $OCF_RESKEY_env | egrep "p_trans_ctrl" | awk '{print $2}'`
+	else
+		WRKFLOW_ID=`ps -u energypw ux | grep $OCF_RESKEY_env | egrep "p_trans_ctrl" | awk '{print $2}'`
+	fi		
 
 }
 
@@ -123,17 +136,16 @@ pswkflow_status() {
 	# (SUCCESS), failed (ERROR) or _cleanly_ stopped (NOT RUNNING).
 	# That is THREE states, not just yes/no.
 
+	get_workflow_pid
 	if [ -n "$WRKFLOW_ID" ]; then
 	    	#pswkflow is likely running 	
 		ocf_log info "pswkflow daemon running"
 		return $OCF_SUCCESS
 	else	
-		ocf_log error "pswkflow daemon is not running but pid file exists"
+		ocf_log info "pswkflow daemon is not running"
 		return $OCF_NOT_RUNNING
 	fi
 
-	ocf_log info "pswkflow daemon is not running"
-	return $OCF_NOT_RUNNING
 }
 
 pswkflow_start() {
@@ -181,7 +193,7 @@ pswkflow_stop() {
     			return $OCF_ERR_ARGS
 		else
         		ocf_log info "pswkflow daemon stopped"
-        		return $OCF_NOT_RUNNING
+        		return $OCF_SUCCESS
                 fi
         fi
 }
@@ -189,26 +201,8 @@ pswkflow_stop() {
 pswkflow_validate() {
     
     pswkflow_status
-    #Check whether pidfile exist
-    if [ -n "$OCF_RESKEY_pidfile" -a ! -f "$OCF_RESKEY_pidfile" ]; then
-    	ocf_exit_reason "Config file $OCF_RESKEY_pidfile does not exist."
-    	exit $OCF_ERR_ARGS
-    fi
-
-   #Determine if PID file variable is set
-    if grep "PIDFILE=" $PIDFILE | cut -d '=' -f2 >/dev/null; then
-	:
-    else
-        ocf_exit_reason "Error. \"PID\" entry required in the pswkflow pid file to be run by OCF."
-        return $OCF_ERR_GENERIC
-    fi
-
-    return $OCF_SUCCESS
 
 }
-
-#: ${OCF_RESKEY_state=${HA_RSCTMP}/pswkflow-${OCF_RESOURCE_INSTANCE}.state}
-#: ${OCF_RESKEY_fake="pswkflow"}
 
 #####
 #
