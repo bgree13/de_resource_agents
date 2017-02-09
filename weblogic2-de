@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #
-#	weblogic1 OCF RA. Does nothing but wait a few seconds, can be
+#	weblogic2 OCF RA. Does nothing but wait a few seconds, can be
 #	configured to fail occassionally.
 #
 # Copyright (c) 2004 SUSE LINUX AG, Lars Marowsky-Brée
@@ -52,11 +52,11 @@ meta_data() {
 	cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="weblogic1" version="0.1">
+<resource-agent name="weblogic2" version="0.1">
 <version>1.0</version>
 
 <longdesc lang="en">
-This is a weblogic1 Resource Agent. It does absolutely nothing except 
+This is a weblogic2 Resource Agent. It does absolutely nothing except 
 keep track of whether the cyle process is running or not.
 
 NB: Please pay attention to the timeouts specified in the actions
@@ -67,16 +67,16 @@ instances. So, try to be neither overly generous nor too stingy,
 but moderate. The minimum timeouts should never be below 10 seconds.
 </longdesc>
 
-<shortdesc lang="en">Example weblogic1 resource agent</shortdesc>
+<shortdesc lang="en">Example weblogic2 resource agent</shortdesc>
 
 <parameters>
 
 <parameter name="binpath" unique="0" required="true">
 <longdesc lang="en">
-The weblogic1 binary path 
+The weblogic2 binary path 
 For example, "/opt/peace/tools/cluster_scripts"
 </longdesc>
-<shortdesc lang="en">Full path to the weblogic1 binary</shortdesc>
+<shortdesc lang="en">Full path to the weblogic2 binary</shortdesc>
 <content type="string" default="/opt/peace/tools/cluster_scripts/" />
 </parameter>
 
@@ -90,9 +90,9 @@ The Process Workfow environment
 
 <parameter name="lock_file" unique="1" required="true">
 <longdesc lang="en">
-Location of the weblogic1 lockfile 
+Location of the weblogic2 lockfile 
 </longdesc>
-<shortdesc lang="en">weblogic1 lock file path</shortdesc>
+<shortdesc lang="en">weblogic2 lock file path</shortdesc>
 <content type="string" default="" />
 </parameter>
 
@@ -114,57 +114,63 @@ END
 USAGE="Usage: $0 {start|stop|monitor|status|validate-all|meta-data}";
 
 
-weblogic1_usage() {
+weblogic2_usage() {
 
 	echo $USAGE >&2
 }
 
-weblogic1_status() {
+weblogic2_status() {
 	# Monitor _MUST!_ differentiate correctly between running
 	# (SUCCESS), failed (ERROR) or _cleanly_ stopped (NOT RUNNING).
 	# That is THREE states, not just yes/no.
 
 	#We fail if lockfile isn't set or not running
         if [ ! -f $OCF_RESKEY_lock_file ]; then
-                ocf_log info "$OCF_RESKEY_lock_file not present, weblogic1 service not running"
+                ocf_log info "$OCF_RESKEY_lock_file not present, weblogic2 service not running"
                 return $OCF_NOT_RUNNING
         fi
 
-        # We return success here for weblogic1_as restarting 
+        # We return success here for weblogic2_as restarting 
         # could cause more harm than good
         local control=1
         if [ "$control" -eq 1 ]; then
-                ocf_log info "weblogic1 service running"
+                ocf_log info "weblogic2 service running"
                 return $OCF_SUCCESS
         fi
 	
 
 }
 
-weblogic1_start() {
+weblogic2_start() {
 	
-	ocf_log info "Starting the DE weblogic1 service..."
-        #START_COMMAND="$OCF_RESKEY_weblogic1_script_path/control_web.sh start $OCF_RESKEY_env"
-        START_COMMAND="/opt/peace/tools/cluster_scripts/control_web.sh start"
-
+	ocf_log info "Starting the DE weblogic2 service..."
+	if [ -n "$OCF_RESKEY_env" ]; then
+        	START_COMMAND="$OCF_RESKEY_weblogic2_script_path/control_domain.sh start $OCF_RESKEY_env"
+        else
+        	START_COMMAND="/opt/peace/tools/cluster_scripts/control_domain.sh start"
+        fi
+	
         ocf_log info "Command to start: $START_COMMAND"
         $START_COMMAND;
         if [ $? -eq "0" ]; then
-                ocf_log info "Started the DE weblogic1 service..."
+                ocf_log info "Started the DE weblogic2 service..."
                 touch $OCF_RESKEY_lock_file
                 return $OCF_SUCCESS
         else
-                ocf_log error "weblogic1 resource is not running"
+                ocf_log error "weblogic2 resource is not running"
                 return $OCF_NOT_RUNNING
         fi
 
 }
 
-weblogic1_stop() {
+weblogic2_stop() {
 
-	ocf_log info "Stopping the DE weblogic1 service..."
-        #STOP_COMMAND="$OCF_RESKEY_weblogic1_script_path/control_web.sh stop $OCF_RESKEY_env"
-        STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_web.sh stop"
+	ocf_log info "Stopping the DE weblogic2 service..."
+	if [ -n "$OCF_RESKEY_env" ]; then
+        	STOP_COMMAND="$OCF_RESKEY_weblogic2_script_path/control_domain.sh stop $OCF_RESKEY_env"
+        else
+        	STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_domain.sh stop"
+        fi
 
         ocf_log info "Command to stop: $STOP_COMMAND"
         $STOP_COMMAND;
@@ -174,19 +180,19 @@ weblogic1_stop() {
                 else
                         ocf_log info "Lock file not present"
                 fi
-                ocf_log info "Stopped the DE weblogic1 service..."
+                ocf_log info "Stopped the DE weblogic2 service..."
                 exit $OCF_SUCCESS
         else
-                ocf_exit_reason "Error. Could not stop the weblogic1 service"
+                ocf_exit_reason "Error. Could not stop the weblogic2 service"
                 return $OCF_NOT_RUNNING
         fi
 	
 
 }
 
-weblogic1_validate() {
+weblogic2_validate() {
     
-    weblogic1_status
+    weblogic2_status
 
 }
 
@@ -197,36 +203,36 @@ weblogic1_validate() {
 #####
 
 if [ $# -ne 1 ]; then
-        weblogic1_usage
+        weblogic2_usage
         exit $OCF_ERR_ARGS
 fi
 
 
 case $1 in
 	start)  
-                weblogic1_start
+                weblogic2_start
         ;;
         stop)
-                weblogic1_stop
+                weblogic2_stop
         ;;
         status) 
-		weblogic1_status
+		weblogic2_status
         ;;
         monitor)
-		weblogic1_status
+		weblogic2_status
         ;;
         validate-all)   
-                weblogic1_validate
+                weblogic2_validate
         ;;
         meta-data)    
 		meta_data
         ;;
         usage)  
-		weblogic1_usage
+		weblogic2_usage
                 exit $OCF_SUCCESS
                 ;;
 
-        *)      weblogic1_usage
+        *)      weblogic2_usage
                 exit $OCF_ERR_UNIMPLEMENTED
                 ;;
 esac

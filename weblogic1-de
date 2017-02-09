@@ -144,9 +144,12 @@ weblogic1_status() {
 weblogic1_start() {
 	
 	ocf_log info "Starting the DE weblogic1 service..."
-        #START_COMMAND="$OCF_RESKEY_weblogic1_script_path/control_web.sh start $OCF_RESKEY_env"
-        START_COMMAND="/opt/peace/tools/cluster_scripts/control_web.sh start"
-
+       	if [ -n "$OCF_RESKEY_env" ]; then
+        	START_COMMAND="$OCF_RESKEY_weblogic1_script_path/control_web.sh start $OCF_RESKEY_env"
+    	else
+		START_COMMAND="/opt/peace/tools/cluster_scripts/control_web.sh start"
+    	fi
+ 
         ocf_log info "Command to start: $START_COMMAND"
         $START_COMMAND;
         if [ $? -eq "0" ]; then
@@ -163,8 +166,11 @@ weblogic1_start() {
 weblogic1_stop() {
 
 	ocf_log info "Stopping the DE weblogic1 service..."
-        #STOP_COMMAND="$OCF_RESKEY_weblogic1_script_path/control_web.sh stop $OCF_RESKEY_env"
-        STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_web.sh stop"
+	if [ -n "$OCF_RESKEY_env" ]; then
+        	STOP_COMMAND="$OCF_RESKEY_weblogic1_script_path/control_web.sh stop $OCF_RESKEY_env"
+        else
+        	STOP_COMMAND="/opt/peace/tools/cluster_scripts/control_web.sh stop"
+        fi
 
         ocf_log info "Command to stop: $STOP_COMMAND"
         $STOP_COMMAND;
