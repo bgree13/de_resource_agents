@@ -1,8 +1,8 @@
 #!/bin/sh
 #
 #
-#	oracle OCF RA. Does nothing but wait a few seconds, can be
-#	configured to fail occassionally.
+#	oracle OCF RA. Custom oracle script to monitor the DE oracle 
+#	instances in the Direct Energy environment.
 #
 # Copyright (c) 2004 SUSE LINUX AG, Lars Marowsky-Brée
 #                    All Rights Reserved.
