@@ -1,8 +1,8 @@
 #!/bin/sh
 #
 #
-#	oracle OCF RA. Custom oracle script to monitor the DE oracle 
-#	instances in the Direct Energy environment.
+#	oracle listener OCF RA. Custom oracle listener script to monitor the DE oracle 
+#	listener instances in the Direct Energy environment.
 #
 # Copyright (c) 2004 SUSE LINUX AG, Lars Marowsky-Brée
 #                    All Rights Reserved.
@@ -52,11 +52,11 @@ meta_data() {
 	cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="oracle" version="0.1">
+<resource-agent name="listener" version="0.1">
 <version>1.0</version>
 
 <longdesc lang="en">
-This is a oracle Resource Agent. It does absolutely nothing except 
+This is a listener Resource Agent. It does absolutely nothing except 
 keep track of whether the cyle process is running or not.
 
 NB: Please pay attention to the timeouts specified in the actions
@@ -67,24 +67,24 @@ instances. So, try to be neither overly generous nor too stingy,
 but moderate. The minimum timeouts should never be below 10 seconds.
 </longdesc>
 
-<shortdesc lang="en">Example oracle resource agent</shortdesc>
+<shortdesc lang="en">Example listener resource agent</shortdesc>
 
 <parameters>
 
 <parameter name="binpath" unique="0" required="true">
 <longdesc lang="en">
-The oracle binary path 
-For example, "/prod/appl/oracle/ASM/scripts/"
+The Oracle listener binary path 
+For example, "/software/oracle/grid/12.1.0/bin/"
 </longdesc>
-<shortdesc lang="en">Full path to the oracle binary</shortdesc>
-<content type="string" default="/prod/appl/oracle/ASM/scripts/" />
+<shortdesc lang="en">Full path to the listener binary</shortdesc>
+<content type="string" default="/software/oracle/grid/12.1.0/bin/" />
 </parameter>
 
-<parameter name="db" unique="0" required="true">
+<parameter name="listname" unique="0" required="true">
 <longdesc lang="en">
-The Oracle DB name
+The Oracle DB listener name
 </longdesc>
-<shortdesc lang="en">Oracle  DB name</shortdesc>
+<shortdesc lang="en">Oracle  DB listener name</shortdesc>
 <content type="string" default="" />
 </parameter>
 
@@ -106,32 +106,32 @@ END
 USAGE="Usage: $0 {start|stop|monitor|status|validate-all|meta-data}";
 
 
-oracle_usage() {
+listener_usage() {
 
 	echo $USAGE >&2
 }
 
-oracle_status() {
+listener_status() {
 	# Monitor _MUST!_ differentiate correctly between running
 	# (SUCCESS), failed (ERROR) or _cleanly_ stopped (NOT RUNNING).
 	# That is THREE states, not just yes/no.
 
-	STATUS_COMMAND="$OCF_RESKEY_binpath/db_status.ksh $OCF_RESKEY_db"
+        STATUS_COMMAND="$OCF_RESKEY_binpath/lsnrctl status $OCF_RESKEY_listname"
 
 	$STATUS_COMMAND
  	if [ $? -eq 0 ]; then
-                ocf_log info "DE Database $OCF_RESKEY_db in Read/Write mode, rc=0"
+                ocf_log info "DE Listener $OCF_RESKEY_listener is running, rc=0"
                 return "$OCF_SUCCESS"
         elif [ $? -eq 1 ]; then
-                ocf_log info "DE Database $OCF_RESKEY_db is NOT in Read/Write mode, rc=1"
+                ocf_log info "DE Listener $OCF_RESKEY_listener is not running, rc=1"
                 return "$OCF_NOT_RUNNING"
         fi
 						
 }
 
-oracle_start() {
+listener_start() {
 
-	oracle_status
+	listener_status
 	local rc=$?
         if [ $rc -eq $OCF_SUCCESS ]; then
                 return $OCF_SUCCESS
@@ -140,43 +140,43 @@ oracle_start() {
                 exit $OCF_ERR_GENERIC
         fi
 
-        START_COMMAND="$OCF_RESKEY_binpath/db_start.ksh $OCF_RESKEY_db"
+        START_COMMAND="$OCF_RESKEY_binpath/lsnrctl start $OCF_RESKEY_listname"
 	
-	ocf_log info "Starting the DE oracle db..."
+	ocf_log info "Starting the DE listener $OCF_RESKEY_listname"
         ocf_log info "Command to start: $START_COMMAND"
         $START_COMMAND
         if [ $? -eq "0" ]; then
-                ocf_log info "Started the DE oracle db - $OCF_RESKEY_db"
+                ocf_log info "Started the DE listener listname - $OCF_RESKEY_listname"
                 return $OCF_SUCCESS
         else
-                ocf_log error "oracle resource is not running"
+                ocf_log error "listener resource is not running"
                 return $OCF_NOT_RUNNING
         fi
 
 }
 
-oracle_stop() {
+listener_stop() {
 
-       	STOP_COMMAND="$OCF_RESKEY_binpath/db_stop.ksh $OCF_RESKEY_db"
+       	STOP_COMMAND="$OCF_RESKEY_binpath/lsnrctl stop $OCF_RESKEY_listname"
 
-	if oracle_status; then	
-		ocf_log info "Stopping the DE oracle db..."
+	if listener_status; then	
+		ocf_log info "Stopping the DE listener $OCF_RESKEY_listname"
         	ocf_log info "Command to stop: $STOP_COMMAND"
         	$STOP_COMMAND
 		if [ $? -eq "0" ]; then
-			ocf_log info "Stopped the DE oracle db - $OCF_RESKEY_db"
+			ocf_log info "Stopped the DE listener - $OCF_RESKEY_listname"
 			exit $OCF_SUCCESS
 		else
-			ocf_exit_reason "Error. Could not stop the oracle db"
+			ocf_exit_reason "Error. Could not stop the listener $OCF_RESKEY_listname"
 			return $OCF_NOT_RUNNING
 		fi
 	fi	
 
 }
 
-oracle_validate() {
+listener_validate() {
     
-    oracle_status
+    listener_status
 
 }
 
@@ -187,36 +187,36 @@ oracle_validate() {
 #####
 
 if [ $# -ne 1 ]; then
-        oracle_usage
+        listener_usage
         exit $OCF_ERR_ARGS
 fi
 
 
 case $1 in
 	start)  
-                oracle_start
+                listener_start
         ;;
         stop)
-                oracle_stop
+                listener_stop
         ;;
         status) 
-		oracle_status
+		listener_status
         ;;
         monitor)
-		oracle_status
+		listener_status
         ;;
         validate-all)   
-                oracle_validate
+                listener_validate
         ;;
         meta-data)    
 		meta_data
         ;;
         usage)  
-		oracle_usage
+		listener_usage
                 exit $OCF_SUCCESS
                 ;;
 
-        *)      oracle_usage
+        *)      listener_usage
                 exit $OCF_ERR_UNIMPLEMENTED
                 ;;
 esac
